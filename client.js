@@ -163,6 +163,7 @@ window.__ModuleLoader__.load({
       off: '关闭',
       syncing: '同步中…', synced: '已同步', syncFail: '同步失败',
       needUrl: '请先填写 WebDAV 地址', restoreConfirm: '会用云端的提示词覆盖本地，确定继续吗？',
+      confirm: '确定', confirmTitle: '操作确认',
       restored: '已从服务器恢复', noRemote: '云端暂无数据', required: '标题和内容都不能为空',
       min: '分钟', hour: '1 小时',
     };
@@ -186,6 +187,7 @@ window.__ModuleLoader__.load({
       off: 'Off',
       syncing: 'Syncing…', synced: 'Synced', syncFail: 'Sync failed',
       needUrl: 'Please enter the WebDAV address first', restoreConfirm: 'This will overwrite local prompts with the cloud copy. Continue?',
+      confirm: 'Confirm', confirmTitle: 'Confirm action',
       restored: 'Restored from server', noRemote: 'No data on server', required: 'Title and content are required',
       min: 'min', hour: '1 hour',
     };
@@ -596,7 +598,7 @@ window.__ModuleLoader__.load({
     }
 
     // ---------- 子视图：快捷键设置（录制式，参考 sidebar-file-search） ----------
-    function ShortcutSettingsView({ t, spec, onChange }) {
+    function ShortcutSettingsView({ t, spec, onChange, confirm }) {
       const hasValue = !!spec;
       const [capturing, setCapturing] = React.useState(false);
       const [preview, setPreview] = React.useState('');
@@ -657,8 +659,8 @@ window.__ModuleLoader__.load({
               hasValue && !capturing ? h('button', {
                 type: 'button', className: 'qsp-keyclear',
                 title: t('clearShortcut'), 'aria-label': t('clearShortcut'),
-                onClick: () => {
-                  if (typeof window !== 'undefined' && !window.confirm(t('shortcutClearConfirm'))) return;
+                onClick: async () => {
+                  if (!(await confirm(t('shortcutClearConfirm')))) return;
                   onChange(null); setPreview(''); setError('');
                 },
               }, h(CloseIcon, { size: 14 })) : null,
@@ -759,6 +761,19 @@ window.__ModuleLoader__.load({
       const syncPendingRef = React.useRef(0);
       // 有待执行的「从服务器恢复」时，跳过排队的自动上传，避免恢复前把云端覆盖
       const syncPullPendingRef = React.useRef(0);
+      // 应用内确认框（DSH 页面里原生 confirm 可能被拦截，统一用组件内确认）
+      const [confirmBox, setConfirmBox] = React.useState(null);
+      const confirmResolveRef = React.useRef(null);
+      const askConfirm = React.useCallback((message) => new Promise((resolve) => {
+        confirmResolveRef.current = resolve;
+        setConfirmBox({ message });
+      }), []);
+      const settleConfirm = (ok) => {
+        const resolve = confirmResolveRef.current;
+        confirmResolveRef.current = null;
+        setConfirmBox(null);
+        if (resolve) resolve(ok);
+      };
 
       // 引用：避免闭包过期 / 记住 DOM 与插入位置
       const triggerRef = React.useRef(null);
@@ -814,6 +829,8 @@ window.__ModuleLoader__.load({
               const remote = res && res.data && Array.isArray(res.data.prompts) ? res.data.prompts : null;
               if (remote) {
                 commit(remote.map(normalizePrompt));
+                // 直接回到列表，用户能马上看到恢复后的提示词
+                setScreen({ name: SCREEN.list });
                 setSync({ text: t('restored') + ' · ' + timeLabel(), error: false });
               } else {
                 setSync({ text: t('noRemote'), error: false });
@@ -896,8 +913,8 @@ window.__ModuleLoader__.load({
         }
         setScreen({ name: SCREEN.list }); setFormError('');
       };
-      const removePrompt = (p) => {
-        if (typeof window !== 'undefined' && !window.confirm(t('delConfirm'))) return;
+      const removePrompt = async (p) => {
+        if (!(await askConfirm(t('delConfirm')))) return;
         commit(prompts.filter((x) => x.id !== p.id));
       };
 
@@ -949,13 +966,13 @@ window.__ModuleLoader__.load({
           }, it.label)),
         );
         body = tab === SETTINGS_TAB.shortcut
-          ? h(ShortcutSettingsView, { t, spec, onChange: changeSpec })
+          ? h(ShortcutSettingsView, { t, spec, onChange: changeSpec, confirm: askConfirm })
           : h(SyncSettingsView, {
             t, settings, sync, syncing,
             onChange: (patch) => setSettings((s) => ({ ...s, ...patch })),
             onSyncNow: () => runSync(SYNC_MODE.upload),
-            onRestore: () => {
-              if (typeof window !== 'undefined' && !window.confirm(t('restoreConfirm'))) return;
+            onRestore: async () => {
+              if (!(await askConfirm(t('restoreConfirm')))) return;
               runSync(SYNC_MODE.pull);
             },
           });
@@ -997,7 +1014,26 @@ window.__ModuleLoader__.load({
         },
       }, body);
 
-      return h(React.Fragment, null, trigger, createPortal(dialog, document.body));
+      // 应用内确认框：盖在设置/列表弹窗之上
+      const confirmNode = confirmBox ? createPortal(
+        h('div', { className: 'qsp-confirm-root' },
+          h(DialogShell, {
+            t, title: t('confirmTitle'), ops: null, tabs: null,
+            onClose: () => settleConfirm(false),
+            onMaskDown: () => settleConfirm(false),
+            onKeyDown: (e) => { if (e.key === 'Escape') { e.preventDefault(); settleConfirm(false); } },
+          },
+            h(React.Fragment, null,
+              h('p', { className: 'qsp-confirm-msg' }, confirmBox.message),
+              h('div', { className: 'qsp-footer' },
+                h(Button, { onClick: () => settleConfirm(false) }, t('cancel')),
+                h(Button, { primary: true, onClick: () => settleConfirm(true) }, t('confirm')),
+              ),
+            ),
+          ),
+        ), document.body) : null;
+
+      return h(React.Fragment, null, trigger, createPortal(dialog, document.body), confirmNode);
     }
 
     // ---------- 样式（全部使用 DSH 主题令牌，自动适配明暗） ----------
@@ -1014,6 +1050,9 @@ window.__ModuleLoader__.load({
 .qsp-mask{position:absolute;inset:var(--dsh-frame-chrome-top,0px) 0 0;background:var(--dsw-alias-bg-mask-1);backdrop-filter:var(--dsw-mask-blur);animation:qspFade .16s ease;}
 .qsp-dialog{box-sizing:border-box;position:relative;z-index:1;display:flex;flex-direction:column;width:min(500px,100%);max-height:100%;overflow:hidden;border:0;border-radius:var(--dsw-radius-panel);background:var(--dsw-alias-bg-layer-2);box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family);animation:qspFade .16s ease;}
 .qsp-dialog:focus{outline:none;}
+.qsp-confirm-root{position:relative;z-index:1300;}
+.qsp-confirm-root .qsp-dialog{width:min(380px,100%);}
+.qsp-confirm-msg{margin:0;padding:0 24px;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary);}
 .qsp-content{display:flex;flex-direction:column;flex:1 1 auto;width:100%;min-height:0;overflow-y:auto;padding-bottom:24px;}
 .qsp-head{display:flex;flex:none;align-items:center;justify-content:space-between;gap:8px;padding:22px 14px 12px 24px;}
 .qsp-title{margin:0;font-size:16px;line-height:24px;font-weight:500;color:var(--dsw-alias-label-primary);}
