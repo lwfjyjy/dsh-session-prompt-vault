@@ -163,6 +163,7 @@ window.__ModuleLoader__.load({
       off: '关闭',
       syncing: '同步中…', synced: '已同步', syncFail: '同步失败',
       needUrl: '请先填写 WebDAV 地址', restoreConfirm: '会用云端的提示词覆盖本地，确定继续吗？',
+      syncConfirm: '会把本机提示词上传并覆盖云端文件，确定继续吗？',
       confirm: '确定', confirmTitle: '操作确认',
       restored: '已从服务器恢复', noRemote: '云端暂无数据', required: '标题和内容都不能为空',
       min: '分钟', hour: '1 小时',
@@ -187,6 +188,7 @@ window.__ModuleLoader__.load({
       off: 'Off',
       syncing: 'Syncing…', synced: 'Synced', syncFail: 'Sync failed',
       needUrl: 'Please enter the WebDAV address first', restoreConfirm: 'This will overwrite local prompts with the cloud copy. Continue?',
+      syncConfirm: 'This will upload local prompts and overwrite the cloud copy. Continue?',
       confirm: 'Confirm', confirmTitle: 'Confirm action',
       restored: 'Restored from server', noRemote: 'No data on server', required: 'Title and content are required',
       min: 'min', hour: '1 hour',
@@ -970,7 +972,10 @@ window.__ModuleLoader__.load({
           : h(SyncSettingsView, {
             t, settings, sync, syncing,
             onChange: (patch) => setSettings((s) => ({ ...s, ...patch })),
-            onSyncNow: () => runSync(SYNC_MODE.upload),
+            onSyncNow: async () => {
+              if (!(await askConfirm(t('syncConfirm')))) return;
+              runSync(SYNC_MODE.upload);
+            },
             onRestore: async () => {
               if (!(await askConfirm(t('restoreConfirm')))) return;
               runSync(SYNC_MODE.pull);
