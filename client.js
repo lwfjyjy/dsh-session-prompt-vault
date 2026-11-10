@@ -152,6 +152,7 @@ window.__ModuleLoader__.load({
       group: '分组', groupPlaceholder: '选择或输入分组（可留空）', all: '全部', ungrouped: '未分组',
       titlePlaceholder: '起个名字，例如「代码审查」', contentPlaceholder: '输入提示词内容…',
       shortcutTab: '快捷键', syncTab: '同步设置', shortcutLabel: '打开快捷提示词',
+      prevTab: '上一个分组', nextTab: '下一个分组',
       syncDesc: '① WebDAV 地址从哪来：坚果云在「设置 → 常规设置 → 第三方应用管理 → 管理」里添加应用，即可获得 WebDAV 地址和应用密码（用户名填坚果云账号，密码填生成的应用密码；地址一般形如 https://dav.jianguoyun.com/dav/）；其他网盘在各自的设置/安全中开通。\n② 冲突注意：同一台电脑的同步会排队执行，不会互相覆盖；多台电脑同时编辑时，后上传的会覆盖先上传的，换电脑前请先点「从服务器恢复」，并尽量避免同时编辑。自动同步只上传备份，不会自动拉取云端。',
       unset: '未设置', clearShortcut: '删除快捷键',
       shortcutClearConfirm: '确定删除这个快捷键吗？删除后可以点右侧按钮重新录制。',
@@ -177,6 +178,7 @@ window.__ModuleLoader__.load({
       group: 'Group', groupPlaceholder: 'Pick or type a group (optional)', all: 'All', ungrouped: 'Ungrouped',
       titlePlaceholder: 'e.g. Code review', contentPlaceholder: 'Enter prompt content…',
       shortcutTab: 'Shortcut', syncTab: 'Sync', shortcutLabel: 'Open quick prompts',
+      prevTab: 'Previous group', nextTab: 'Next group',
       syncDesc: '① Where the WebDAV address comes from: in Jianguo Cloud, open Settings → General → Third-party app management → Manage, add an app, and you will get the WebDAV address and app password (username = your Jianguo Cloud account, password = the generated app password; usually https://dav.jianguoyun.com/dav/). Other providers enable WebDAV in their own settings/security page.\n② Conflict notes: syncs on one computer run one at a time and never overwrite each other; when several computers edit at once, the last upload wins—click “Restore from server” before editing on another device and avoid editing simultaneously. Auto sync only uploads backups and never pulls automatically.',
       unset: 'Not set', clearShortcut: 'Remove shortcut',
       shortcutClearConfirm: 'Remove this shortcut? You can record a new one afterwards.',
@@ -223,6 +225,14 @@ window.__ModuleLoader__.load({
     function ChevronDownIcon({ size = 14 }) {
       return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
         h('path', { d: 'M6 9l6 6 6-6' }));
+    }
+    function ChevronLeftIcon({ size = 14 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
+        h('path', { d: 'M15 6l-6 6 6 6' }));
+    }
+    function ChevronRightIcon({ size = 14 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
+        h('path', { d: 'M9 6l6 6-6 6' }));
     }
 
     // ---------- 通用工具 ----------
@@ -535,15 +545,29 @@ window.__ModuleLoader__.load({
           }),
         ),
         // 只有存在真实分组时才展示分组栏，避免多余 tab
-        showTabs ? h('div', { className: 'qsp-tabs', role: 'tablist' },
-          tabs.map((tab) => h('button', {
-            key: tab.key || '__ungrouped__',
-            type: 'button', role: 'tab',
-            'aria-selected': tab.key === activeGroup,
-            className: 'qsp-tab' + (tab.key === activeGroup ? ' qsp-tab-active' : ''),
-            onClick: () => onSelectGroup(tab.key),
-          }, tab.label + '(' + tab.count + ')')),
-        ) : null,
+        showTabs ? (() => {
+          const index = Math.max(0, tabs.findIndex((tab) => tab.key === activeGroup));
+          const step = (delta) => onSelectGroup(tabs[(index + delta + tabs.length) % tabs.length].key);
+          return h('div', { className: 'qsp-tabbar' },
+            h('button', {
+              type: 'button', className: 'qsp-tabnav', title: t('prevTab'), 'aria-label': t('prevTab'),
+              onClick: () => step(-1),
+            }, h(ChevronLeftIcon, { size: 14 })),
+            h('div', { className: 'qsp-tabs', role: 'tablist' },
+              tabs.map((tab) => h('button', {
+                key: tab.key || '__ungrouped__',
+                type: 'button', role: 'tab',
+                'aria-selected': tab.key === activeGroup,
+                className: 'qsp-tab' + (tab.key === activeGroup ? ' qsp-tab-active' : ''),
+                onClick: () => onSelectGroup(tab.key),
+              }, tab.label + '(' + tab.count + ')')),
+            ),
+            h('button', {
+              type: 'button', className: 'qsp-tabnav', title: t('nextTab'), 'aria-label': t('nextTab'),
+              onClick: () => step(1),
+            }, h(ChevronRightIcon, { size: 14 })),
+          );
+        })() : null,
         h('div', { className: 'qsp-list', role: 'listbox' },
           items.length === 0
             ? h('div', { className: 'qsp-empty' }, emptyText)
@@ -925,6 +949,16 @@ window.__ModuleLoader__.load({
         if (e.key === 'Escape') { e.preventDefault(); closeLayer(); return; }
         if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.max(0, Math.min(a + 1, filtered.length - 1))); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          // 左右方向键在分组 tab 之间切换（循环）
+          e.preventDefault();
+          if (tabs.length > 1) {
+            const index = Math.max(0, tabs.findIndex((tab) => tab.key === effGroup));
+            const step = e.key === 'ArrowRight' ? 1 : -1;
+            setActiveGroup(tabs[(index + step + tabs.length) % tabs.length].key);
+            setActive(0);
+          }
+        }
         else if (e.key === 'Enter' || e.key === 'Tab') {
           const item = filtered[activeIndex];
           if (item) { e.preventDefault(); insert(item.content); }
@@ -1086,6 +1120,10 @@ window.__ModuleLoader__.load({
 .qsp-toolbar{display:flex;align-items:center;gap:8px;}
 .qsp-search{flex:1;}
 /* 分组 tab：横向可滚动，超出可滑动 */
+.qsp-tabbar{display:flex;align-items:center;gap:4px;margin:0 -2px;}
+.qsp-tabbar .qsp-tabs{flex:1;margin:0;padding:2px 0;}
+.qsp-tabnav{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:none;border-radius:var(--dsw-radius-sm,6px);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;}
+.qsp-tabnav:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);}
 .qsp-tabs{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;margin:0 -2px;padding:2px;scrollbar-width:none;}
 .qsp-tabs::-webkit-scrollbar{display:none;}
 .qsp-tab{flex:none;height:28px;padding:0 10px;border:none;border-radius:999px;background:transparent;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:1;cursor:pointer;white-space:nowrap;transition:background-color .12s ease,color .12s ease;}
