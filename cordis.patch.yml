@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-session-prompt-vault
+      name: '@lwfjyjy/dsh-session-prompt-vault'

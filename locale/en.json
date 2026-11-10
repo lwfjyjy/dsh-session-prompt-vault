@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Prompt Vault",
+    "description": "Adds a button at the left of the composer. Manage saved prompts in a popup, insert one with a click, Enter or Tab, and sync them over WebDAV."
+  }
+}
