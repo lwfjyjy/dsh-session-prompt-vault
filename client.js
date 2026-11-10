@@ -237,6 +237,8 @@ window.__ModuleLoader__.load({
 
     // ---------- 通用工具 ----------
     const isRecord = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+    // 中文输入法选词时不要处理按键（回车只用来确认候选词）
+    const isComposingEvent = (e) => !!e && (e.isComposing === true || e.keyCode === 229);
     const uid = () => 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     const groupOf = (p) => (p.group || '').trim();          // 统一取“干净”的分组名
     const nowISO = () => new Date().toISOString();
@@ -646,6 +648,7 @@ window.__ModuleLoader__.load({
         };
         const stop = () => { setCapturing(false); setPreview(''); setError(''); };
         const onKeyDown = (e) => {
+          if (isComposingEvent(e) || e.keyCode === 229) return;
           e.preventDefault();
           e.stopPropagation();
           // 只按修饰键时先实时预览，让用户知道已按住了哪些键
@@ -946,6 +949,7 @@ window.__ModuleLoader__.load({
 
       // 列表键盘：上下移动、回车/Tab 插入
       const onListKeyDown = (e) => {
+        if (isComposingEvent(e)) return;
         if (e.key === 'Escape') { e.preventDefault(); closeLayer(); return; }
         if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.max(0, Math.min(a + 1, filtered.length - 1))); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
@@ -1048,6 +1052,7 @@ window.__ModuleLoader__.load({
         onClose: closeLayer,
         onMaskDown: closeLayer,
         onKeyDown: (e) => {
+          if (isComposingEvent(e)) return;
           if (e.key === 'Escape') { e.preventDefault(); closeLayer(); return; }
           if (screen.name === SCREEN.list) onListKeyDown(e);
         },
