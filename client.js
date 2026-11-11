@@ -1456,7 +1456,8 @@ window.__ModuleLoader__.load({
 .qsp-combo-grip{display:inline-flex;align-items:center;justify-content:center;height:34px;color:var(--dsw-alias-label-tertiary);flex:none;cursor:grab;touch-action:none;}
 .qsp-combo-grip:active{cursor:grabbing;}
 .qsp-combo-selectwrap{position:relative;flex:1;min-width:0;}
-.qsp-combo-selectbtn{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;height:34px;padding:0 8px;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;}
+.qsp-combo-selectbtn{display:flex;align-items:center;justify-content:center;position:relative;gap:6px;width:100%;height:34px;padding:0 28px;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;}
+.qsp-combo-selectbtn>svg{position:absolute;right:9px;top:50%;transform:translateY(-50%);flex:none;}
 .qsp-combo-selectbtn.is-empty{color:var(--dsw-alias-label-tertiary);}
 .qsp-combo-selectbtn:hover{background:var(--dsw-alias-interactive-bg-hover);}
 .qsp-combo-menu{position:static;margin-top:4px;max-height:220px;overflow-y:auto;box-sizing:border-box;padding:6px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-2);border:.5px solid var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent);}
@@ -1470,7 +1471,7 @@ window.__ModuleLoader__.load({
 .qsp-combo-ghost{opacity:.35;}
 .qsp-combo-chosen{box-shadow:var(--dsw-elevation-soft);}
 .qsp-combo-drag{opacity:.95;box-shadow:var(--dsw-elevation-prominent);}
-.qsp-combo-title{min-width:0;font-size:13px;line-height:20px;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.qsp-combo-title{flex:1;min-width:0;font-size:13px;line-height:20px;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;}
 .qsp-combo-empty{padding:18px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);}
 
 /* 底部按钮：尺寸/样式与 DSH 官方 Button 对齐 */
