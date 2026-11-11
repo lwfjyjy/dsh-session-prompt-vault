@@ -1,6 +1,6 @@
 {
   "name": "@lwfjyjy/dsh-session-prompt-vault",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "输入框左侧新增快捷提示词按钮：弹窗管理提示词（增删改查），一键/回车/Tab 插入，支持提示词组合预设与 WebDAV 基础同步。",
   "type": "module",
   "license": "MIT",
