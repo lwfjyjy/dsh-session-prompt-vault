@@ -281,6 +281,13 @@ window.__ModuleLoader__.load({
     const timeLabel = () => new Date().toLocaleTimeString();
 
     // 把任意对象规整成标准提示词结构（加载本地 / 拉取云端都走这里，保证字段可靠）
+    function InsertBelowIcon({ size = 16 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        'aria-hidden': 'true', style: { display: 'block' },
+      }, h('path', { d: 'M12 3v10' }), h('path', { d: 'm7 8 5 5 5-5' }), h('path', { d: 'M5 21h14' }));
+    }
     function normalizePrompt(raw) {
       const p = isRecord(raw) ? raw : {};
       return {
@@ -887,8 +894,8 @@ window.__ModuleLoader__.load({
                         : h('div', { className: 'qsp-combo-menu-empty' }, t('comboNoMatch')),
                     ) : null,
                   ),
-                  h('button', { type: 'button', className: 'qsp-combo-insertbtn', onClick: () => addRow(index) },
-                    t('insertBelow')),
+                  h(IconButton, { className: 'qsp-combo-insertbtn', label: t('insertBelow'), onClick: () => addRow(index) },
+                    h(InsertBelowIcon, { size: 15 })),
                   h(IconButton, { className: 'qsp-iconbtn-danger', label: t('del'), onClick: () => removeRow(index) }, h(TrashIcon, { size: 14 })),
                 );
               }) : h('div', { className: 'qsp-combo-empty' }, t('comboEmpty')),
@@ -1498,7 +1505,7 @@ window.__ModuleLoader__.load({
 .qsp-combo-grip{display:inline-flex;align-items:center;justify-content:center;height:34px;color:var(--dsw-alias-label-tertiary);flex:none;cursor:grab;touch-action:none;}
 .qsp-combo-grip:active{cursor:grabbing;}
 .qsp-combo-selectwrap{position:relative;flex:1;min-width:0;}
-.qsp-combo-selectbtn{display:flex;align-items:center;justify-content:center;position:relative;gap:6px;width:100%;height:34px;padding:0 28px;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;}
+.qsp-combo-selectbtn{display:flex;align-items:center;justify-content:flex-start;position:relative;gap:6px;width:100%;height:34px;padding:0 28px 0 8px;box-sizing:border-box;border:.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;}
 .qsp-combo-selectbtn>svg{position:absolute;right:9px;top:50%;transform:translateY(-50%);flex:none;}
 .qsp-combo-selectbtn.is-empty{color:var(--dsw-alias-label-tertiary);}
 .qsp-combo-selectbtn:hover{background:var(--dsw-alias-interactive-bg-hover);}
@@ -1507,13 +1514,13 @@ window.__ModuleLoader__.load({
 .qsp-combo-option{display:block;width:100%;box-sizing:border-box;padding:7px 9px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .qsp-combo-option:hover,.qsp-combo-option-active{background:var(--dsw-alias-interactive-bg-hover);}
 .qsp-combo-menu-empty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;text-align:center;}
-.qsp-combo-insertbtn{flex:none;display:inline-flex;align-items:center;height:34px;padding:0 6px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;cursor:pointer;white-space:nowrap;}
+.qsp-combo-insertbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;}
 .qsp-combo-insertbtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);}
 .qsp-combo-itemrow>.qsp-iconbtn{width:34px;height:34px;}
 .qsp-combo-ghost{opacity:.35;}
 .qsp-combo-chosen{box-shadow:var(--dsw-elevation-soft);}
 .qsp-combo-drag{opacity:.95;box-shadow:var(--dsw-elevation-prominent);}
-.qsp-combo-title{flex:1;min-width:0;font-size:13px;line-height:20px;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;}
+.qsp-combo-title{flex:1;min-width:0;font-size:13px;line-height:20px;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;}
 .qsp-combo-empty{padding:18px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);}
 
 /* 底部按钮：尺寸/样式与 DSH 官方 Button 对齐 */
