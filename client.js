@@ -720,6 +720,19 @@ window.__ModuleLoader__.load({
 
     // ---------- 子视图：新增 / 编辑 ----------
     function PromptEditorView({ t, draft, onChange, groupNames, onSubmit, onCancel, error }) {
+      // 分组下拉：用与组合选择一致的菜单样式，避免浏览器原生 datalist 与整体设计不一致
+      const [groupOpen, setGroupOpen] = React.useState(false);
+      const groupRef = React.useRef(null);
+      const groupText = draft.group || '';
+      const groupOptions = groupNames.filter((g) => !groupText.trim() || g.toLowerCase().includes(groupText.trim().toLowerCase()));
+      React.useEffect(() => {
+        if (!groupOpen) return;
+        const onDocDown = (e) => {
+          if (!groupRef.current || !groupRef.current.contains(e.target)) setGroupOpen(false);
+        };
+        document.addEventListener('mousedown', onDocDown, true);
+        return () => document.removeEventListener('mousedown', onDocDown, true);
+      }, [groupOpen]);
       return h(React.Fragment, null,
         h('div', { className: 'qsp-body' },
           h(Field, { label: t('promptTitle') },
@@ -729,12 +742,27 @@ window.__ModuleLoader__.load({
               onChange: (e) => onChange({ title: e.target.value }),
             })),
           h(Field, { label: t('group') },
-            h('input', {
-              className: 'qsp-input', type: 'text', spellCheck: false, list: 'qsp-group-list',
-              placeholder: t('groupPlaceholder'), value: draft.group || '',
-              onChange: (e) => onChange({ group: e.target.value }),
-            }),
-            h('datalist', { id: 'qsp-group-list' }, groupNames.map((g) => h('option', { key: g, value: g })))),
+            h('div', { className: 'qsp-dropdown', ref: groupRef },
+              h('input', {
+                className: 'qsp-input qsp-dropdown-input', type: 'text', spellCheck: false,
+                placeholder: t('groupPlaceholder'), value: groupText,
+                onFocus: () => setGroupOpen(true), onClick: () => setGroupOpen(true),
+                onChange: (e) => { onChange({ group: e.target.value }); setGroupOpen(true); },
+                onKeyDown: (e) => {
+                  if (e.key === 'Escape') { e.stopPropagation(); setGroupOpen(false); }
+                  if (e.key === 'Enter' && groupOpen) { e.preventDefault(); setGroupOpen(false); }
+                },
+              }),
+              h(ChevronDownIcon, { size: 14 }),
+              groupOpen && groupOptions.length
+                ? h('div', { className: 'qsp-combo-menu qsp-dropdown-menu' },
+                    h('div', { className: 'qsp-combo-options' },
+                      groupOptions.map((g) => h('button', {
+                        key: g, type: 'button', role: 'option', className: 'qsp-combo-option',
+                        onMouseDown: (e) => e.preventDefault(),
+                        onClick: () => { onChange({ group: g }); setGroupOpen(false); },
+                      }, g))))
+                : null)),
           h(Field, { label: t('promptContent') },
             h('textarea', {
               className: 'qsp-input qsp-textarea', rows: 6,
@@ -1516,6 +1544,10 @@ window.__ModuleLoader__.load({
 .qsp-combo-option{display:block;flex:none;width:100%;box-sizing:border-box;padding:7px 9px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .qsp-combo-option:hover,.qsp-combo-option-active{background:var(--dsw-alias-interactive-bg-hover);}
 .qsp-combo-menu-empty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;text-align:center;}
+.qsp-dropdown{position:relative;}
+.qsp-dropdown>svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--dsw-alias-label-tertiary);}
+.qsp-dropdown-input{padding-right:30px;}
+.qsp-dropdown>.qsp-combo-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;margin-top:0;}
 .qsp-combo-insertbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;}
 .qsp-combo-insertbtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);}
 .qsp-combo-itemrow>.qsp-iconbtn{width:34px;height:34px;}
