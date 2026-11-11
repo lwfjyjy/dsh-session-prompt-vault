@@ -588,15 +588,58 @@ window.__ModuleLoader__.load({
     function Field({ label, children }) {
       return h('div', { className: 'qsp-field' }, h('label', { className: 'qsp-label' }, label), children);
     }
-    function IconButton({ className, label, title, children, ...rest }) {
-      return h('button', {
-        type: 'button',
-        className: 'qsp-iconbtn' + (className ? ' ' + className : ''),
-        'aria-label': label,
-        title: title || label,
-        ...rest,
-      }, children);
+    // 图标 tooltip：悬停/聚焦 260ms 后在元素上方（空间不足则下方）显示
+    function useTip(text) {
+      const [tip, setTip] = React.useState(null);
+      const ref = React.useRef(null);
+      const timerRef = React.useRef(null);
+      const id = React.useMemo(() => 'qsp-tip-' + Math.random().toString(36).slice(2, 8), [text]);
+      const show = () => {
+        if (!text) return;
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+          const el = ref.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const below = rect.top < 64;
+          setTip({ left: rect.left + rect.width / 2, top: below ? rect.bottom + 6 : rect.top - 6, below });
+        }, 260);
+      };
+      const hide = () => { clearTimeout(timerRef.current); setTip(null); };
+      React.useEffect(() => () => clearTimeout(timerRef.current), []);
+      const node = tip
+        ? createPortal(h('div', {
+            id, role: 'tooltip', className: 'qsp-tooltip',
+            style: { left: tip.left + 'px', top: tip.top + 'px', transform: tip.below ? 'translateX(-50%)' : 'translateX(-50%) translateY(-100%)' },
+          }, text), document.body)
+        : null;
+      return { ref, node, show, hide, describedBy: tip ? id : undefined };
     }
+    function TooltipButton({ className, label, title, children, ...rest }) {
+      const tip = useTip(title || label);
+      const { onClick, ...buttonProps } = rest;
+      return h(React.Fragment, null,
+        h('button', {
+          ...buttonProps, type: 'button', ref: tip.ref,
+          className: 'qsp-iconbtn' + (className ? ' ' + className : ''),
+          'aria-label': label, 'aria-describedby': tip.describedBy,
+          onMouseEnter: tip.show, onMouseLeave: tip.hide, onFocus: tip.show, onBlur: tip.hide,
+          onClick: (e) => { tip.hide(); if (onClick) onClick(e); },
+        }, children),
+        tip.node,
+      );
+    }
+    function TipSpan({ className, label, children }) {
+      const tip = useTip(label);
+      return h(React.Fragment, null,
+        h('span', {
+          className, ref: tip.ref, 'aria-label': label, 'aria-describedby': tip.describedBy,
+          onMouseEnter: tip.show, onMouseLeave: tip.hide, onFocus: tip.show, onBlur: tip.hide,
+        }, children),
+        tip.node,
+      );
+    }
+    const IconButton = TooltipButton;
     function Button({ primary, className, children, ...rest }) {
       return h('button', {
         type: 'button',
@@ -626,8 +669,8 @@ window.__ModuleLoader__.load({
           const index = Math.max(0, tabs.findIndex((tab) => tab.key === activeGroup));
           const step = (delta) => onSelectGroup(tabs[(index + delta + tabs.length) % tabs.length].key);
           return h('div', { className: 'qsp-tabbar' },
-            h('button', {
-              type: 'button', className: 'qsp-tabnav', title: t('prevTab'), 'aria-label': t('prevTab'),
+            h(IconButton, {
+              className: 'qsp-tabnav', label: t('prevTab'),
               onClick: () => step(-1),
             }, h(ChevronLeftIcon, { size: 14 })),
             h('div', { className: 'qsp-tabs', role: 'tablist' },
@@ -639,8 +682,8 @@ window.__ModuleLoader__.load({
                 onClick: () => onSelectGroup(tab.key),
               }, tab.label + '(' + tab.count + ')')),
             ),
-            h('button', {
-              type: 'button', className: 'qsp-tabnav', title: t('nextTab'), 'aria-label': t('nextTab'),
+            h(IconButton, {
+              className: 'qsp-tabnav', label: t('nextTab'),
               onClick: () => step(1),
             }, h(ChevronRightIcon, { size: 14 })),
           );
@@ -814,7 +857,7 @@ window.__ModuleLoader__.load({
                 const prompt = byId.get(row.id);
                 const candidates = picking === index ? candidatesFor(index) : null;
                 return h('div', { key: row.key, className: 'qsp-combo-itemrow' },
-                  h('span', { className: 'qsp-combo-grip', title: t('comboHint') }, h(GripIcon)),
+                  h(TipSpan, { className: 'qsp-combo-grip', label: t('comboHint') }, h(GripIcon)),
                   h('div', {
                     className: 'qsp-combo-selectwrap',
                     ref: (el) => { wrapRefs.current[index] = el; },
@@ -920,9 +963,8 @@ window.__ModuleLoader__.load({
                 onClick: () => { setCapturing(true); setPreview(''); setError(''); },
               }, capturing ? (preview || t('pressKeys')) : (hasValue ? specToText(spec) : t('unset'))),
               // 录制过快捷键后，右侧出现删除按钮（删除前确认）
-              hasValue && !capturing ? h('button', {
-                type: 'button', className: 'qsp-keyclear',
-                title: t('clearShortcut'), 'aria-label': t('clearShortcut'),
+              hasValue && !capturing ? h(IconButton, {
+                className: 'qsp-keyclear', label: t('clearShortcut'),
                 onClick: async () => {
                   if (!(await confirm(t('shortcutClearConfirm')))) return;
                   onChange(null); setPreview(''); setError('');
