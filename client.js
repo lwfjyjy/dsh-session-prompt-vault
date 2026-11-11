@@ -48,12 +48,14 @@ window.__ModuleLoader__.load({
     const ENDPOINT = '/dsh-session-prompt-vault/webdav'; // 宿主代理地址（同源，无跨域）
     const STORAGE_KEYS = Object.freeze({
       prompts: 'dsh-session-prompt-vault:prompts',
+      combos: 'dsh-session-prompt-vault:combos',
       settings: 'dsh-session-prompt-vault:settings',
       shortcut: 'dsh-session-prompt-vault:shortcut',
     });
     // 旧插件名（dsh-session-quick-prompt）的数据键：首次读取时自动迁移，避免升级后丢提示词
     const LEGACY_STORAGE_KEYS = Object.freeze({
       'dsh-session-prompt-vault:prompts': 'dsh-session-quick-prompt:prompts',
+      'dsh-session-prompt-vault:combos': 'dsh-session-quick-prompt:combos',
       'dsh-session-prompt-vault:settings': 'dsh-session-quick-prompt:settings',
       'dsh-session-prompt-vault:shortcut': 'dsh-session-quick-prompt:shortcut',
     });
@@ -61,9 +63,10 @@ window.__ModuleLoader__.load({
     const GROUP_ALL = 'ALL';           // “全部”分组 tab 的哨兵键
     const UNGROUPED = '';              // “未分组”的键（空字符串 = 无分组）
     const AUTO_SYNC_OPTIONS = Object.freeze([0, 3, 15, 30, 60]); // 自动同步间隔（分钟），0=关闭
-    const SCREEN = Object.freeze({ list: 'list', settings: 'settings', edit: 'edit' });
+    const SCREEN = Object.freeze({ list: 'list', settings: 'settings', edit: 'edit', combo: 'combo' });
     const SETTINGS_TAB = Object.freeze({ shortcut: 'shortcut', sync: 'sync' });
     const SYNC_MODE = Object.freeze({ upload: 'upload', pull: 'pull' });
+    const COMBO_TAB = 'COMBOS';     // 固定的「组合」tab 键
 
     // 首次使用（本地为空）时写入的示例提示词
     const SEED_PROMPTS = [
@@ -168,6 +171,15 @@ window.__ModuleLoader__.load({
       confirm: '确定', confirmTitle: '操作确认',
       restored: '已从服务器恢复', noRemote: '云端暂无数据', required: '标题和内容都不能为空',
       min: '分钟', hour: '1 小时',
+      addCombo: '新增组合', editCombo: '编辑组合', comboTitle: '提示词组合',
+      comboName: '组合名称', comboNamePlaceholder: '例如「工作日报」',
+      comboList: '组合列表', comboSearch: '搜索并选择提示词…',
+      comboEmpty: '还没有添加提示词', comboNoMatch: '没有可匹配的提示词',
+      comboTab: '组合', comboEmptyList: '还没有组合，点右上角「新增组合」创建',
+      comboHint: '下拉框搜索选择，每次最多显示 10 项；拖动左侧手柄可以调整顺序。',
+      comboRequired: '组合名称不能为空', comboItemsRequired: '请至少添加一条提示词',
+      duplicateTitle: '提示词标题已存在，请换一个', duplicateCombo: '组合名称已存在，请换一个',
+      delComboConfirm: '确定删除这个组合吗？',
     };
     const en = {
       trigger: 'Quick Prompts', triggerTip: 'Manage reusable prompts; click one to insert it',
@@ -194,6 +206,15 @@ window.__ModuleLoader__.load({
       confirm: 'Confirm', confirmTitle: 'Confirm action',
       restored: 'Restored from server', noRemote: 'No data on server', required: 'Title and content are required',
       min: 'min', hour: '1 hour',
+      addCombo: 'New combo', editCombo: 'Edit combo', comboTitle: 'Prompt combo',
+      comboName: 'Combo name', comboNamePlaceholder: 'e.g. Daily standup',
+      comboList: 'Combo items', comboSearch: 'Search and pick prompts…',
+      comboEmpty: 'No prompts added yet', comboNoMatch: 'No matching prompts',
+      comboTab: 'Combos', comboEmptyList: 'No combos yet. Click “New combo” at the top right.',
+      comboHint: 'Search and pick from the dropdown; up to 10 results. Drag the handle to reorder.',
+      comboRequired: 'Combo name is required', comboItemsRequired: 'Add at least one prompt',
+      duplicateTitle: 'A prompt with this title already exists', duplicateCombo: 'A combo with this name already exists',
+      delComboConfirm: 'Delete this combo?',
     };
 
     // ---------- 图标（手绘 SVG，随 currentColor 变色，无需图标库） ----------
@@ -234,6 +255,19 @@ window.__ModuleLoader__.load({
       return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
         h('path', { d: 'M9 6l6 6-6 6' }));
     }
+    // 组合：多层叠放
+    function StackIcon({ size = 16 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': 'true' },
+        h('path', { d: 'M12 3 3 8l9 5 9-5-9-5Z' }),
+        h('path', { d: 'm3 13 9 5 9-5' }));
+    }
+    // 拖拽排序手柄
+    function GripIcon({ size = 14 }) {
+      return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'currentColor', 'aria-hidden': 'true' },
+        h('circle', { cx: 9, cy: 6, r: 1.3 }), h('circle', { cx: 15, cy: 6, r: 1.3 }),
+        h('circle', { cx: 9, cy: 12, r: 1.3 }), h('circle', { cx: 15, cy: 12, r: 1.3 }),
+        h('circle', { cx: 9, cy: 18, r: 1.3 }), h('circle', { cx: 15, cy: 18, r: 1.3 }));
+    }
 
     // ---------- 通用工具 ----------
     const isRecord = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -253,6 +287,16 @@ window.__ModuleLoader__.load({
         content: String(p.content || ''),
         group: groupOf(p),
         createdAt: Number(p.createdAt) || Date.now(),
+      };
+    }
+    // 组合：名称 + 有顺序的提示词 id 列表
+    function normalizeCombo(raw) {
+      const c = isRecord(raw) ? raw : {};
+      return {
+        id: typeof c.id === 'string' && c.id ? c.id : uid(),
+        name: String(c.name || ''),
+        items: Array.isArray(c.items) ? c.items.filter((x) => typeof x === 'string' && x) : [],
+        createdAt: Number(c.createdAt) || Date.now(),
       };
     }
     // 把任意对象规整成标准设置结构（自动同步间隔只允许预设值）
@@ -301,6 +345,11 @@ window.__ModuleLoader__.load({
       return seeded;
     }
     const savePrompts = (list) => writeJSON(STORAGE_KEYS.prompts, list);
+    function loadCombos() {
+      const list = readJSON(STORAGE_KEYS.combos, []);
+      return Array.isArray(list) ? list.map(normalizeCombo).filter((c) => c.name) : [];
+    }
+    const saveCombos = (list) => writeJSON(STORAGE_KEYS.combos, list);
     const loadSettings = () => normalizeSettings(readJSON(STORAGE_KEYS.settings, {}));
     const saveSettings = (s) => writeJSON(STORAGE_KEYS.settings, s);
 
@@ -324,8 +373,8 @@ window.__ModuleLoader__.load({
     }
     const dav = {
       read: (settings) => davRequest(settings, 'read'),
-      write: (settings, prompts) => davRequest(settings, 'write', {
-        version: SYNC_VERSION, updatedAt: nowISO(), prompts,
+      write: (settings, prompts, combos) => davRequest(settings, 'write', {
+        version: SYNC_VERSION, updatedAt: nowISO(), prompts, combos,
       }),
     };
 
@@ -397,8 +446,9 @@ window.__ModuleLoader__.load({
         ));
       });
     }
-    // 生成分组 tab：全部 + 各分组 + 未分组（带计数）。一次遍历统计，避免每组重复过滤。
-    function buildTabs(t, groups, matched) {
+    // 生成 tab：固定一个「组合」tab（放最左） + 全部 + 各分组 + 未分组（带计数）
+    function buildTabs(t, groups, matched, combos = []) {
+      const tabs = [{ key: COMBO_TAB, label: t('comboTab'), count: combos.length }];
       const counts = new Map();
       let ungrouped = 0;
       matched.forEach((p) => {
@@ -406,12 +456,20 @@ window.__ModuleLoader__.load({
         if (!g) ungrouped += 1;
         else counts.set(g, (counts.get(g) || 0) + 1);
       });
-      const tabs = [{ key: GROUP_ALL, label: t('all'), count: matched.length }];
+      tabs.push({ key: GROUP_ALL, label: t('all'), count: matched.length });
       groups.names.forEach((g) => tabs.push({ key: g, label: g, count: counts.get(g) || 0 }));
       if (groups.hasUngrouped) tabs.push({ key: UNGROUPED, label: t('ungrouped'), count: ungrouped });
       return tabs;
     }
     const byGroup = (list, key) => (key === GROUP_ALL ? list : list.filter((p) => groupOf(p) === key));
+    // 组合里的提示词（按保存顺序，已删除的自动跳过）
+    const comboPrompts = (combo, prompts) => (combo.items || [])
+      .map((id) => prompts.find((p) => p.id === id)).filter(Boolean);
+    const comboText = (combo, prompts) => comboPrompts(combo, prompts).map((p) => p.content).filter(Boolean).join('\n\n');
+    // 标题查重（忽略大小写与首尾空格；excludeId 用于编辑时排除自己）
+    const sameName = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    const hasDuplicateTitle = (prompts, title, excludeId) => prompts.some((p) => p.id !== excludeId && sameName(p.title, title));
+    const hasDuplicateCombo = (combos, name, excludeId) => combos.some((c) => c.id !== excludeId && sameName(c.name, name));
     const previewText = (s) => String(s || '').replace(/\s+/g, ' ').slice(0, 80);
 
     // ---------- 输入框操作（插入 / 回焦） ----------
@@ -472,7 +530,7 @@ window.__ModuleLoader__.load({
     }
     // 修改提示词后（开启自动同步时）稍作防抖立即上传，避免只能等到下一个定时点。
     // 只在提示词变化时触发：仅切换同步间隔不会上传，避免初始化配置时用本机数据覆盖云端。
-    function useAutoUploadOnEdit(prompts, minutes, run) {
+    function useAutoUploadOnEdit(prompts, combos, minutes, run) {
       const runRef = useLatestRef(run);
       const minutesRef = useLatestRef(minutes);
       const mounted = React.useRef(false);
@@ -481,7 +539,7 @@ window.__ModuleLoader__.load({
         if (!(Number(minutesRef.current) > 0)) return undefined;
         const id = setTimeout(() => runRef.current(), 1200);
         return () => clearTimeout(id);
-      }, [prompts]);
+      }, [prompts, combos]);
     }
 
     // 提示词仓库：读取一次，commit 负责「内存 + 本地存储」双写
@@ -489,6 +547,13 @@ window.__ModuleLoader__.load({
       const [prompts, setPrompts] = React.useState(loadPrompts);
       const commit = React.useCallback((next) => { setPrompts(next); savePrompts(next); }, []);
       return [prompts, commit];
+    }
+
+    // 组合仓库
+    function useComboStore() {
+      const [combos, setCombos] = React.useState(loadCombos);
+      const commit = React.useCallback((next) => { setCombos(next); saveCombos(next); }, []);
+      return [combos, commit];
     }
 
     // 同步设置：state 变化自动持久化
@@ -625,6 +690,101 @@ window.__ModuleLoader__.load({
       );
     }
 
+
+    // ---------- 子视图：新增 / 编辑组合 ----------
+    function ComboEditorView({ t, draft, prompts, onChange, onSubmit, onCancel, error }) {
+      const [query, setQuery] = React.useState('');
+      const [open, setOpen] = React.useState(false);
+      const [cursor, setCursor] = React.useState(0);
+      const dragFrom = React.useRef(null);
+      const chosen = draft.items || [];
+      const used = new Set(chosen);
+      const selected = comboPrompts(draft, prompts);
+      const usedTitles = new Set(selected.map((p) => p.title.trim().toLowerCase()));
+      const q = query.trim().toLowerCase();
+      const qFlat = q.replace(/\s+/g, '');
+      const candidates = prompts.filter((p) => {
+        if (used.has(p.id) || usedTitles.has(p.title.trim().toLowerCase())) return false;
+        if (!q) return true;
+        const title = p.title.toLowerCase();
+        if (title.includes(q)) return true;
+        const py = pinyinForms(p.title);
+        return py.full.includes(qFlat) || py.alt.includes(qFlat) || py.initials.includes(qFlat);
+      }).slice(0, 10);
+      const add = (id) => { onChange({ items: chosen.concat(id) }); setQuery(''); setCursor(0); };
+      const remove = (id) => onChange({ items: chosen.filter((x) => x !== id) });
+      const move = (from, to) => {
+        if (from === to || from == null || to == null) return;
+        const items = chosen.slice();
+        const [picked] = items.splice(from, 1);
+        items.splice(to, 0, picked);
+        onChange({ items });
+      };
+      const pickerKeyDown = (e) => {
+        if (isComposingEvent(e)) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setCursor((i) => Math.min(i + 1, Math.max(0, candidates.length - 1))); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((i) => Math.max(i - 1, 0)); }
+        else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (candidates[cursor]) add(candidates[cursor].id);
+        } else if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
+      };
+      return h(React.Fragment, null,
+        h('div', { className: 'qsp-body' },
+          h(Field, { label: t('comboName') },
+            h('input', {
+              className: 'qsp-input', type: 'text', autoFocus: true,
+              placeholder: t('comboNamePlaceholder'), value: draft.name || '',
+              onChange: (e) => onChange({ name: e.target.value }),
+            })),
+          h('div', { className: 'qsp-field' },
+            h('label', { className: 'qsp-label' }, t('comboList') + ' · ' + selected.length),
+            h('div', { className: 'qsp-combo-picker' },
+              h('input', {
+                className: 'qsp-input', type: 'text', spellCheck: false,
+                placeholder: t('comboSearch'), value: query,
+                onFocus: () => setOpen(true),
+                onBlur: () => setTimeout(() => setOpen(false), 120),
+                onChange: (e) => { setQuery(e.target.value); setCursor(0); setOpen(true); },
+                onKeyDown: pickerKeyDown,
+              }),
+              open ? h('div', { className: 'qsp-combo-menu', role: 'listbox' },
+                candidates.length
+                  ? candidates.map((p, i) => h('button', {
+                      key: p.id, type: 'button', role: 'option',
+                      className: 'qsp-combo-option' + (i === cursor ? ' qsp-combo-option-active' : ''),
+                      onMouseDown: (e) => e.preventDefault(),
+                      onMouseEnter: () => setCursor(i),
+                      onClick: () => add(p.id),
+                    }, p.title))
+                  : h('div', { className: 'qsp-combo-menu-empty' }, t('comboNoMatch')),
+              ) : null,
+            ),
+            h('div', { className: 'qsp-combo-list' },
+              selected.length
+                ? selected.map((p, i) => h('div', {
+                    key: p.id, className: 'qsp-combo-row', draggable: true,
+                    onDragStart: () => { dragFrom.current = i; },
+                    onDragOver: (e) => e.preventDefault(),
+                    onDrop: (e) => { e.preventDefault(); move(dragFrom.current, i); dragFrom.current = null; },
+                    onDragEnd: () => { dragFrom.current = null; },
+                  },
+                    h('span', { className: 'qsp-combo-grip', title: t('comboHint') }, h(GripIcon)),
+                    h('span', { className: 'qsp-combo-title' }, p.title),
+                    h(IconButton, { className: 'qsp-iconbtn-danger', label: t('del'), onClick: () => remove(p.id) }, h(TrashIcon, { size: 14 })),
+                  ))
+                : h('div', { className: 'qsp-combo-empty' }, t('comboEmpty')),
+            ),
+            h('p', { className: 'qsp-desc' }, t('comboHint')),
+          ),
+          h(StatusLine, { status: error ? { text: error, error: true } : null }),
+        ),
+        h('div', { className: 'qsp-footer' },
+          h(Button, { onClick: onCancel }, t('cancel')),
+          h(Button, { primary: true, onClick: onSubmit }, t('save')),
+        ),
+      );
+    }
     // ---------- 子视图：快捷键设置（录制式，参考 sidebar-file-search） ----------
     function ShortcutSettingsView({ t, spec, onChange, confirm }) {
       const hasValue = !!spec;
@@ -773,6 +933,7 @@ window.__ModuleLoader__.load({
 
       // 数据（持久化交给专用 hooks，组件只关心交互）
       const [prompts, commit] = usePromptStore();
+      const [combos, commitCombos] = useComboStore();
       const [settings, setSettings] = useSettingsStore();
       const [spec, changeSpec] = useShortcutSetting();
       // 弹窗层级：null=关闭；{ name:'list' } | { name:'settings' } | { name:'edit', draft }
@@ -810,6 +971,7 @@ window.__ModuleLoader__.load({
       const spanRef = React.useRef(null);
       const settingsRef = useLatestRef(settings);
       const promptsRef = useLatestRef(prompts);
+      const combosRef = useLatestRef(combos);
       const inputActionsRef = useLatestRef(inputActions);
 
       // 触发器 hover / focus 提示（延迟出现，位置按按钮实时计算，portal 到 body 避免被输入框裁剪）
@@ -851,13 +1013,15 @@ window.__ModuleLoader__.load({
             if (!isPull && syncPullPendingRef.current > 0) return;
             if (!isPull) {
               // 任务真正执行时再读最新数据，排队期间的新修改不会被旧数据覆盖
-              await dav.write(cfg, promptsRef.current);
+              await dav.write(cfg, promptsRef.current, combosRef.current);
               setSync({ text: t('synced') + ' · ' + timeLabel(), error: false });
             } else {
               const res = await dav.read(cfg);
               const remote = res && res.data && Array.isArray(res.data.prompts) ? res.data.prompts : null;
               if (remote) {
                 commit(remote.map(normalizePrompt));
+                // 云端有组合数据时一并恢复；旧版云端文件没有 combos 字段时保留本机组合
+                if (res.data && Array.isArray(res.data.combos)) commitCombos(res.data.combos.map(normalizeCombo));
                 // 直接回到列表，用户能马上看到恢复后的提示词
                 setScreen({ name: SCREEN.list });
                 setSync({ text: t('restored') + ' · ' + timeLabel(), error: false });
@@ -878,16 +1042,27 @@ window.__ModuleLoader__.load({
         await syncQueueRef.current;
       }
       useAutoSync(settings.autoSyncMinutes, () => runSync(SYNC_MODE.upload, { silent: true }));
-      useAutoUploadOnEdit(prompts, settings.autoSyncMinutes, () => runSync(SYNC_MODE.upload, { silent: true }));
+      useAutoUploadOnEdit(prompts, combos, settings.autoSyncMinutes, () => runSync(SYNC_MODE.upload, { silent: true }));
 
       // 派生数据（分组 / 搜索 / tab / 当前列表）
       const groups = React.useMemo(() => collectGroups(prompts), [prompts]);
       const matched = React.useMemo(() => matchPrompts(prompts, query), [prompts, query]);
-      const tabs = React.useMemo(() => buildTabs(t, groups, matched), [t, groups, matched]);
+      const tabs = React.useMemo(() => buildTabs(t, groups, matched, combos), [t, groups, matched, combos]);
       const effGroup = tabs.some((x) => x.key === activeGroup) ? activeGroup : GROUP_ALL;
-      const filtered = React.useMemo(() => byGroup(matched, effGroup), [matched, effGroup]);
+      // 「组合」tab：把全部组合当作可选中条目展示，点击/回车会把该组合内容合并插入
+      const comboMode = effGroup === COMBO_TAB;
+      const comboItems = React.useMemo(() => combos.map((c) => ({
+        id: 'combo-item-' + c.id, isCombo: true, comboId: c.id,
+        title: c.name, content: comboText(c, prompts),
+        comboPrompts: comboPrompts(c, prompts),
+      })), [combos, prompts]);
+      const filtered = React.useMemo(() => {
+        if (comboMode) return comboItems.filter((item) => !query.trim() || matchPrompts([item], query).length);
+        return byGroup(matched, effGroup);
+      }, [comboMode, comboItems, matched, effGroup, query]);
       const activeIndex = Math.min(active, Math.max(0, filtered.length - 1));
       const editing = screen && screen.name === SCREEN.edit ? screen.draft : null;
+      const comboDraft = screen && screen.name === SCREEN.combo ? screen.draft : null;
 
       // 打开 / 关闭与分层返回
       const openModal = () => {
@@ -926,6 +1101,10 @@ window.__ModuleLoader__.load({
 
       // 新增 / 编辑
       const openEditor = (draft) => { setFormError(''); setScreen({ name: SCREEN.edit, draft }); };
+      const openComboEditor = (draft) => { setFormError(''); setScreen({ name: SCREEN.combo, draft }); };
+      const updateComboDraft = (patch) => setScreen((st) => (
+        st && st.name === SCREEN.combo ? { name: SCREEN.combo, draft: { ...st.draft, ...patch } } : st
+      ));
       const updateDraft = (patch) => setScreen((s) => (
         s && s.name === SCREEN.edit ? { name: SCREEN.edit, draft: { ...s.draft, ...patch } } : s
       ));
@@ -935,6 +1114,8 @@ window.__ModuleLoader__.load({
         const content = (editing.content || '').trim();
         const group = (editing.group || '').trim();
         if (!title || !content) { setFormError(t('required')); return; }
+        // 标题查重：组合列表按名称选择提示词，同名会造成歧义
+        if (hasDuplicateTitle(prompts, title, editing.id)) { setFormError(t('duplicateTitle')); return; }
         if (editing.id) {
           commit(prompts.map((p) => (p.id === editing.id ? { ...p, title, content, group } : p)));
         } else {
@@ -942,9 +1123,31 @@ window.__ModuleLoader__.load({
         }
         setScreen({ name: SCREEN.list }); setFormError('');
       };
+      const submitCombo = () => {
+        if (!comboDraft) return;
+        const name = (comboDraft.name || '').trim();
+        const items = (comboDraft.items || []).filter((id) => prompts.some((p) => p.id === id));
+        if (!name) { setFormError(t('comboRequired')); return; }
+        if (!items.length) { setFormError(t('comboItemsRequired')); return; }
+        if (hasDuplicateCombo(combos, name, comboDraft.id)) { setFormError(t('duplicateCombo')); return; }
+        const nextId = comboDraft.id || uid();
+        const record = { id: nextId, name, items, createdAt: comboDraft.createdAt || Date.now() };
+        commitCombos(comboDraft.id
+          ? combos.map((c) => (c.id === comboDraft.id ? record : c))
+          : [record].concat(combos));
+        setActiveGroup(COMBO_TAB);
+        setActive(0);
+        setScreen({ name: SCREEN.list }); setFormError('');
+      };
       const removePrompt = async (p) => {
         if (!(await askConfirm(t('delConfirm')))) return;
         commit(prompts.filter((x) => x.id !== p.id));
+        // 同时把组合里对这条提示词的引用删掉，避免出现空引用
+        commitCombos(combos.map((c) => ({ ...c, items: (c.items || []).filter((id) => id !== p.id) })));
+      };
+      const removeCombo = async (combo) => {
+        if (!(await askConfirm(t('delComboConfirm')))) return;
+        commitCombos(combos.filter((c) => c.id !== combo.id));
       };
 
       // 列表键盘：上下移动、回车/Tab 插入
@@ -1026,24 +1229,47 @@ window.__ModuleLoader__.load({
           onSubmit: submitEdit,
           onCancel: () => { setScreen({ name: SCREEN.list }); setFormError(''); },
         });
+      } else if (screen.name === SCREEN.combo) {
+        title = comboDraft && comboDraft.id ? t('editCombo') : t('comboTitle');
+        body = h(ComboEditorView, {
+          t, draft: comboDraft, prompts, error: formError,
+          onChange: updateComboDraft, onSubmit: submitCombo,
+          onCancel: () => { setScreen({ name: SCREEN.list }); setFormError(''); },
+        });
       } else {
         ops = h(React.Fragment, null,
           h(IconButton, { label: t('settings'), onClick: () => setScreen({ name: SCREEN.settings, tab: SETTINGS_TAB.shortcut }) }, h(GearIcon)),
+          h(IconButton, {
+            className: 'qsp-iconbtn-accent', label: t('addCombo'),
+            onClick: () => openComboEditor({ name: '', items: [] }),
+          }, h(StackIcon, { size: 16 })),
           h(IconButton, {
             className: 'qsp-iconbtn-accent', label: t('add'),
             onClick: () => openEditor({ title: '', content: '', group: effGroup === GROUP_ALL ? '' : effGroup }),
           }, h(PlusIcon, { size: 16 })),
         );
         body = h(PromptListView, {
-          t, items: filtered, query, tabs, activeGroup: effGroup, showTabs: groups.names.length > 0,
+          t, items: filtered, query, tabs, activeGroup: effGroup,
+          showTabs: true,
           activeIndex, searchRef,
-          emptyText: (query || effGroup !== GROUP_ALL) ? t('noResult') : t('empty'),
+          emptyText: comboMode ? (combos.length ? t('noResult') : t('comboEmptyList'))
+            : (query || effGroup !== GROUP_ALL) ? t('noResult') : t('empty'),
           onQueryChange: (v) => { setQuery(v); setActive(0); },
           onSelectGroup: (key) => { setActiveGroup(key); setActive(0); },
           onActive: setActive,
           onInsert: (p) => insert(p.content),
-          onEdit: (p) => openEditor({ ...p }),
-          onDelete: removePrompt,
+          onEdit: (p) => {
+            if (p.isCombo) {
+              const combo = combos.find((c) => c.id === p.comboId);
+              if (combo) openComboEditor({ ...combo, items: (combo.items || []).slice() });
+            } else openEditor({ ...p });
+          },
+          onDelete: (p) => {
+            if (p.isCombo) {
+              const combo = combos.find((c) => c.id === p.comboId);
+              if (combo) removeCombo(combo);
+            } else removePrompt(p);
+          },
         });
       }
 
@@ -1145,6 +1371,19 @@ window.__ModuleLoader__.load({
 .qsp-item-ops{display:flex;gap:2px;opacity:0;transition:opacity .12s ease;}
 .qsp-item:hover .qsp-item-ops,.qsp-item-active .qsp-item-ops{opacity:1;}
 .qsp-empty{padding:32px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:13px;}
+
+/* 组合编辑：搜索下拉 + 可拖拽列表 */
+.qsp-combo-picker{position:relative;}
+.qsp-combo-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:10;max-height:220px;overflow-y:auto;box-sizing:border-box;padding:4px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-2);border:.5px solid var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent);}
+.qsp-combo-option{display:block;width:100%;box-sizing:border-box;padding:8px 10px;border:none;border-radius:var(--dsw-radius-md,8px);background:transparent;color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.qsp-combo-option:hover,.qsp-combo-option-active{background:var(--dsw-alias-interactive-bg-hover);}
+.qsp-combo-menu-empty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;text-align:center;}
+.qsp-combo-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+.qsp-combo-row{display:flex;align-items:center;gap:8px;min-height:36px;padding:2px 4px 2px 8px;border:.5px solid var(--dsw-alias-border-l1);border-radius:var(--dsw-radius-md,8px);background:var(--dsw-alias-bg-layer-2);cursor:grab;}
+.qsp-combo-row:active{cursor:grabbing;}
+.qsp-combo-grip{display:inline-flex;align-items:center;color:var(--dsw-alias-label-tertiary);flex:none;}
+.qsp-combo-title{flex:1;min-width:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.qsp-combo-empty{padding:18px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12px;border:.5px dashed var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,8px);}
 
 /* 底部按钮：尺寸/样式与 DSH 官方 Button 对齐 */
 .qsp-footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:20px 24px 0;}
