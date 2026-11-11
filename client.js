@@ -711,7 +711,7 @@ window.__ModuleLoader__.load({
         const py = pinyinForms(p.title);
         return py.full.includes(qFlat) || py.alt.includes(qFlat) || py.initials.includes(qFlat);
       }).slice(0, 10);
-      const add = (id) => { onChange({ items: chosen.concat(id) }); setQuery(''); setCursor(0); };
+      const add = (id) => { if (chosen.includes(id)) return; onChange({ items: chosen.concat(id) }); setQuery(''); setCursor(0); };
       const remove = (id) => onChange({ items: chosen.filter((x) => x !== id) });
       const move = (from, to) => {
         if (from === to || from == null || to == null) return;
