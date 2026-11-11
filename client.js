@@ -883,15 +883,16 @@ window.__ModuleLoader__.load({
                         onChange: (e) => { setQuery(e.target.value); setCursor(0); },
                         onKeyDown: (e) => pickerKeyDown(e, candidates),
                       }),
-                      candidates.length
-                        ? candidates.map((p, i) => h('button', {
-                            key: p.id, type: 'button', role: 'option',
-                            className: 'qsp-combo-option' + (i === cursor ? ' qsp-combo-option-active' : ''),
-                            onMouseDown: (e) => e.preventDefault(),
-                            onMouseEnter: () => setCursor(i),
-                            onClick: () => choose(index, p.id),
-                          }, p.title))
-                        : h('div', { className: 'qsp-combo-menu-empty' }, t('comboNoMatch')),
+                      h('div', { className: 'qsp-combo-options' },
+                        candidates.length
+                          ? candidates.map((p, i) => h('button', {
+                              key: p.id, type: 'button', role: 'option',
+                              className: 'qsp-combo-option' + (i === cursor ? ' qsp-combo-option-active' : ''),
+                              onMouseDown: (e) => e.preventDefault(),
+                              onMouseEnter: () => setCursor(i),
+                              onClick: () => choose(index, p.id),
+                            }, p.title))
+                          : h('div', { className: 'qsp-combo-menu-empty' }, t('comboNoMatch'))),
                     ) : null,
                   ),
                   h(IconButton, { className: 'qsp-combo-insertbtn', label: t('insertBelow'), onClick: () => addRow(index) },
@@ -1509,9 +1510,10 @@ window.__ModuleLoader__.load({
 .qsp-combo-selectbtn>svg{position:absolute;right:9px;top:50%;transform:translateY(-50%);flex:none;}
 .qsp-combo-selectbtn.is-empty{color:var(--dsw-alias-label-tertiary);}
 .qsp-combo-selectbtn:hover{background:var(--dsw-alias-interactive-bg-hover);}
-.qsp-combo-menu{position:static;margin-top:4px;max-height:220px;overflow-y:auto;box-sizing:border-box;padding:6px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-2);border:.5px solid var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent);}
-.qsp-combo-searchbox{height:32px;margin-bottom:4px;font-size:12px;}
-.qsp-combo-option{display:block;width:100%;box-sizing:border-box;padding:7px 9px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.qsp-combo-menu{position:static;margin-top:4px;max-height:220px;overflow:hidden;display:flex;flex-direction:column;box-sizing:border-box;padding:6px;border-radius:var(--dsw-radius-lg);background:var(--dsw-alias-bg-layer-2);border:.5px solid var(--dsw-alias-border-l2);box-shadow:var(--dsw-elevation-prominent);}
+.qsp-combo-searchbox{flex:none;height:32px;margin-bottom:4px;font-size:12px;}
+.qsp-combo-options{display:flex;flex-direction:column;gap:2px;overflow-y:auto;min-height:0;}
+.qsp-combo-option{display:block;flex:none;width:100%;box-sizing:border-box;padding:7px 9px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .qsp-combo-option:hover,.qsp-combo-option-active{background:var(--dsw-alias-interactive-bg-hover);}
 .qsp-combo-menu-empty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:12px;text-align:center;}
 .qsp-combo-insertbtn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;}
